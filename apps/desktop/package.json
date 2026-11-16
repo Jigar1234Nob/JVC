@@ -1,1 +1,42 @@
-{"name":"@jvc/desktop","version":"1.0.0","private":true,"main":"main.cjs","scripts":{"package":"electron-builder"},"devDependencies":{"electron":"^35.0.0","electron-builder":"^26.0.12"},"build":{"appId":"au.jigar.jvc","productName":"JVC","files":["main.cjs","preload.cjs","../web/dist/**/*"],"directories":{"output":"../../release"},"mac":{"target":["dmg","zip"],"category":"public.app-category.social-networking"},"win":{"target":["nsis","portable"]},"nsis":{"oneClick":false,"allowToChangeInstallationDirectory":true}}}
+{
+  "name": "@jvc/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "package": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "35.7.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "au.jigar.jvc",
+    "productName": "JVC",
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "../web/dist/**/*"
+    ],
+    "directories": {
+      "output": "../../release"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.social-networking"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
