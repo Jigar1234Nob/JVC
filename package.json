@@ -1,1 +1,18 @@
-{"name":"jvc","private":true,"version":"1.0.0","workspaces":["apps/web","apps/desktop"],"scripts":{"dev":"npm run dev --workspace @jvc/web","build":"npm run build --workspace @jvc/web","desktop:build":"npm run build --workspace @jvc/web && npm run package --workspace @jvc/desktop","android:sync":"npm run build && npx cap sync android"},"devDependencies":{"@capacitor/cli":"^7.4.3","typescript":"^5.8.3"}}
+{
+  "name": "jvc",
+  "private": true,
+  "version": "1.1.0",
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "dev": "npm run dev --workspace @jvc/web",
+    "build": "npm run build --workspace @jvc/web",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "android:sync": "npm run build && npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "@tauri-apps/cli": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}
