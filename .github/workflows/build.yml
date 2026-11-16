@@ -23,13 +23,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
       - run: npm install
-      - run: npm run build
-      - run: npm run package --workspace @jvc/desktop
+      - run: npm run desktop:build
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-${{ matrix.target }}
-          path: release/*
+          path: apps/desktop/src-tauri/target/release/bundle/**/*
           if-no-files-found: error
   android:
     runs-on: ubuntu-latest
@@ -57,8 +60,6 @@ jobs:
           curl -fsSLO https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q commandlinetools-linux-11076708_latest.zip
           mv cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
-          # sdkmanager closes the input pipe after accepting licences; with pipefail,
-          # the resulting SIGPIPE from yes would incorrectly fail this step.
           set +o pipefail
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --licenses
           set -o pipefail
