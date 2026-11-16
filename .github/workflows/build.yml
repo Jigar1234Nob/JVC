@@ -101,7 +101,7 @@ jobs:
       - name: List release installers
         shell: bash
         run: |
-          find release-assets -type f | grep -E '\\.(exe|msi|dmg|apk)
+          find release-assets -type f
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -116,7 +116,6 @@ jobs:
             release-assets/windows/**/*.msi
             release-assets/macos/**/*.dmg
             release-assets/android/**/*.apk
-
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
