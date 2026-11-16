@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "JVC",
+  "version": "1.1.0",
+  "identifier": "au.jigar.jvc",
+  "build": {
+    "beforeDevCommand": "npm run dev --workspace @jvc/web",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build --workspace @jvc/web",
+    "frontendDist": "../apps/web/dist"
+  },
+  "app": {
+    "windows": [{
+      "title": "JVC",
+      "width": 1280,
+      "height": 820,
+      "minWidth": 760,
+      "minHeight": 560,
+      "center": true,
+      "resizable": true
+    }],
+    "security": {
+      "csp": "default-src 'self' asset: http://asset.localhost; frame-src https://chat.jigar.au; connect-src ipc: http://ipc.localhost https://chat.jigar.au; img-src 'self' asset: http://asset.localhost https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "dmg", "app"],
+    "category": "SocialNetworking",
+    "shortDescription": "A lightweight client for Jigar Virtual Client",
+    "longDescription": "JVC desktop client for chat.jigar.au"
+  }
+}
