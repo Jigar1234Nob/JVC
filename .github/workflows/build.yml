@@ -57,7 +57,11 @@ jobs:
           curl -fsSLO https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q commandlinetools-linux-11076708_latest.zip
           mv cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+          # sdkmanager closes the input pipe after accepting licences; with pipefail,
+          # the resulting SIGPIPE from yes would incorrectly fail this step.
+          set +o pipefail
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --licenses
+          set -o pipefail
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - run: npm install
       - run: npm run build
