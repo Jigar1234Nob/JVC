@@ -9,3 +9,14 @@ android/
 !.env.example
 *.keystore
 *.jks
+
+# Signing certificates, private keys and provisioning profiles
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.key
+*.pem
