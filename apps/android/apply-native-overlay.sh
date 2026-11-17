@@ -12,6 +12,9 @@ python3 - <<'PY'
 from pathlib import Path
 import re
 
+APP_VERSION = "2.0.1"
+APP_VERSION_CODE = 20001
+
 manifest = Path("android/app/src/main/AndroidManifest.xml")
 if not manifest.exists():
     raise SystemExit("Capacitor AndroidManifest.xml was not generated")
@@ -39,10 +42,10 @@ if not gradle.exists():
     raise SystemExit("Capacitor app/build.gradle was not generated")
 
 build = gradle.read_text()
-build, code_count = re.subn(r"(?m)^(\s*versionCode\s+)\d+", r"\g<1>20001", build, count=1)
+build, code_count = re.subn(r"(?m)^(\s*versionCode\s+)\d+", rf"\g<1>{APP_VERSION_CODE}", build, count=1)
 build, name_count = re.subn(
     r"(?m)^(\s*versionName\s+)[\"'][^\"']+[\"']",
-    r"\g<1>'2.0.1'",
+    rf"\g<1>'{APP_VERSION}'",
     build,
     count=1,
 )
