@@ -166,7 +166,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         if (pendingRequest != null) {
             pendingRequest.deny();
             clearPendingRequest();
