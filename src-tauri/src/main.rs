@@ -33,7 +33,6 @@ fn open_in_default_browser(app: &tauri::AppHandle, url: &tauri::Url) {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_camera_kessdev::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
