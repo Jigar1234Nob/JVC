@@ -1,8 +1,10 @@
 {
   "name": "jvc",
   "private": true,
-  "version": "1.1.0",
-  "workspaces": ["apps/web"],
+  "version": "2.0.0",
+  "workspaces": [
+    "apps/web"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace @jvc/web",
     "build": "npm run build --workspace @jvc/web",
