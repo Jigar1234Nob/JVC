@@ -3,12 +3,25 @@
 use tauri::{
     utils::config::WebviewUrl,
     webview::{NewWindowResponse, PermissionKind, PermissionResponse, WebviewWindowBuilder},
-    Manager,
 };
+use tauri_plugin_opener::OpenerExt;
+
+fn open_in_default_browser(app: &tauri::AppHandle, url: &tauri::Url) {
+    match url.scheme() {
+        "https" | "http" | "mailto" | "tel" => {
+            // Use the operating system's registered default application.
+            let _ = app.opener().open_url(url.as_str(), None::<&str>);
+        }
+        _ => {
+            // Never hand javascript:, file:, data:, or unknown schemes to the OS.
+        }
+    }
+}
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_camera_kessdev::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
             let main_url = WebviewUrl::External("https://chat.jigar.au".parse()?);
@@ -20,49 +33,31 @@ fn main() {
                 .center()
                 .resizable(true)
                 .on_permission_request(|_, permission| match permission {
-                    // Camera and microphone are never silently granted.
                     PermissionKind::Camera | PermissionKind::Microphone => {
                         PermissionResponse::Default
                     }
-                    // Deny other permissions until JVC adds an explicit flow.
                     _ => PermissionResponse::Deny,
                 })
-                .on_new_window(move |url, features| {
-                    // Only allow secure web popups. Never create javascript:, data:,
-                    // file:, or other unexpected windows from remote page content.
-                    if url.scheme() != "https" {
-                        return NewWindowResponse::Deny;
-                    }
+                .on_navigation({
+                    let app_handle = app_handle.clone();
+                    move |url| {
+                        // Keep JVC itself inside the app. Every other web link
+                        // goes straight to the user's default browser.
+                        if url.scheme() == "https"
+                            && url.host_str() == Some("chat.jigar.au")
+                        {
+                            return true;
+                        }
 
-                    let label = format!(
-                        "popup-{}",
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_millis()
-                    );
-
-                    match WebviewWindowBuilder::new(
-                        &app_handle,
-                        label,
-                        WebviewUrl::External(url.clone()),
-                    )
-                    .title("JVC")
-                    .inner_size(900.0, 700.0)
-                    .min_inner_size(480.0, 360.0)
-                    .center()
-                    .resizable(true)
-                    .window_features(features)
-                    .on_document_title_changed(|window, _title| {
-                        // Keep JVC branding in the native title bar instead of
-                        // exposing arbitrary webpage titles as browser chrome.
-                        let _ = window.set_title("JVC");
-                    })
-                    .build()
-                    {
-                        Ok(window) => NewWindowResponse::Create { window },
-                        Err(_) => NewWindowResponse::Deny,
+                        open_in_default_browser(&app_handle, url);
+                        false
                     }
+                })
+                .on_new_window(move |url, _features| {
+                    // Links using target=_blank and window.open follow the same
+                    // default-browser rule instead of creating JVC popup windows.
+                    open_in_default_browser(&app_handle, &url);
+                    NewWindowResponse::Deny
                 })
                 .build()?;
 
