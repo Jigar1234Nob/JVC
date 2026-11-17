@@ -7,9 +7,6 @@ android/
 .env
 .env.*
 !.env.example
-*.keystore
-*.jks
-
 # Signing certificates, private keys and provisioning profiles
 *.keystore
 *.jks
