@@ -1,25 +1,56 @@
 name: Build JVC
+
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: jvc-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  resolve-dependencies:
+    name: Resolve shared npm dependency lock
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate one lock snapshot for this build
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jvc-node-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
+
   desktop:
+    needs: resolve-dependencies
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            target: windows
-          - os: macos-latest
-            target: macos
+          - os: windows-2025
+            target: windows-x64
+            bundle_path: src-tauri/target/release/bundle/**/*
+          - os: macos-15
+            target: macos-universal
+            bundle_path: src-tauri/target/universal-apple-darwin/release/bundle/**/*
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: jvc-node-lock
+          path: .
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,19 +58,36 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-      - run: npm install
+      - name: Install universal macOS Rust targets
+        if: matrix.target == 'macos-universal'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: npm ci --no-audit --no-fund
       - name: Generate platform app icons
         run: npx tauri icon src-tauri/icons/app-icon.svg --output src-tauri/icons
-      - run: npm run desktop:build
+      - name: Build desktop package
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "macos-universal" ]; then
+            npm run desktop:build -- --target universal-apple-darwin
+          else
+            npm run desktop:build
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-${{ matrix.target }}
-          path: src-tauri/target/release/bundle/**/*
+          path: ${{ matrix.bundle_path }}
           if-no-files-found: error
+          retention-days: 14
+
   android:
-    runs-on: ubuntu-latest
+    needs: resolve-dependencies
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: jvc-node-lock
+          path: .
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -66,47 +114,38 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --licenses
           set -o pipefail
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - run: npm install
+      - run: npm ci --no-audit --no-fund
       - run: npm run build
       - run: npx cap add android
       - run: npx cap sync android
-      - name: Declare Android camera and microphone permissions
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          text = manifest.read_text()
-          additions = """    <uses-permission android:name="android.permission.CAMERA" />
-              <uses-permission android:name="android.permission.RECORD_AUDIO" />
-              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-          """
-          if "android.permission.CAMERA" not in text:
-              text = text.replace("<application", additions + "\\n    <application", 1)
-          manifest.write_text(text)
-          PY
-      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Apply JVC Android navigation and media permission gate
+        run: bash apps/android/apply-native-overlay.sh
+      - name: Build Android debug APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-android-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 14
 
   publish-release:
     name: Publish JVC installers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [desktop, android]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
       - name: Download Windows installers
         uses: actions/download-artifact@v4
         with:
-          name: jvc-windows
+          name: jvc-windows-x64
           path: release-assets/windows
-      - name: Download macOS installers
+      - name: Download universal macOS installer
         uses: actions/download-artifact@v4
         with:
-          name: jvc-macos
+          name: jvc-macos-universal
           path: release-assets/macos
       - name: Download Android APK
         uses: actions/download-artifact@v4
@@ -115,14 +154,12 @@ jobs:
           path: release-assets/android
       - name: List release installers
         shell: bash
-        run: |
-          find release-assets -type f
+        run: find release-assets -type f -print
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0.0
-          name: JVC v2.0.0
-          target_commitish: ${{ github.sha }}
+          tag_name: ${{ github.ref_name }}
+          name: JVC ${{ github.ref_name }}
           generate_release_notes: true
           make_latest: true
           fail_on_unmatched_files: true
@@ -131,4 +168,3 @@ jobs:
             release-assets/windows/**/*.msi
             release-assets/macos/**/*.dmg
             release-assets/android/**/*.apk
-
