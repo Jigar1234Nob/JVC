@@ -81,6 +81,8 @@ JVC does not add a native clipboard bridge or broad clipboard permission. Basic 
 
 The custom `JvcWebChromeClient` preserves Capacitor's dialogs and file chooser while replacing its permissive media callback with JVC's strict origin/resource gate. It does not add notification or clipboard support.
 
+Desktop capability matrix from the current Tauri backend: Windows can pass `Notifications` and `ClipboardRead` requests to WebView2 for the trusted chat page. Tauri's current macOS backend does not support those permission kinds, and JVC denies them there. Android uses Capacitor rather than Tauri and has no native notification/clipboard bridge. See https://docs.rs/tauri/latest/tauri/webview/enum.PermissionKind.html.
+
 Required real-device QA:
 - deny camera and microphone, then verify calls remain blocked;
 - grant microphone only and verify video capture remains blocked;
@@ -88,8 +90,8 @@ Required real-device QA:
 - verify a non-chat origin cannot obtain either resource;
 - verify unknown WebView resources are denied;
 - verify app background/foreground transitions and request cancellation;
-- test copy, paste and clipboard read from a user gesture;
-- test notification permission prompts and background behavior, and record unsupported cases;
+- test Android selection, context-menu copy/paste and user-activated clipboard reads, including a graceful fallback when `readText()` is denied;
+- test Windows notification and clipboard-read prompts; confirm macOS and Android are not advertised as supporting web notifications;
 - test external links, target blank, mailto and tel links.
 
 ## Build matrix and artifacts
@@ -108,27 +110,26 @@ Pull requests and main-branch pushes build artifacts but do not publish a releas
 
 ### Automated validation record
 
-On 17 November 2026, workflow run [#44043382549](https://github.com/Jigar1234Nob/JVC/actions/runs/44043382549) completed successfully for main commit `f8873ac57c3a5d4fb6862796e492431d789862ee`. The dependency resolver, Windows x64, universal macOS and Android jobs all passed. The tag-only publish job was correctly skipped for this main-branch build.
+On 17 November 2026, GitHub Actions run [#104](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087) passed for main commit `33d8d83cd12815547560582c2c85e8bca7e1d0e7`. The dependency-lock resolver, Windows x64, universal macOS and Android jobs all completed successfully. The tag-only draft-release job was skipped because this was a push to `main`.
 
-The downloaded artifacts were inspected:
+Checks completed in that run:
 
-- Windows: `JVC_2.0.0_x64-setup.exe` (2,048,995 bytes) and `JVC_2.0.0_x64_en-US.msi` (3,059,712 bytes). The executable was identified as a Windows PE/NSIS installer and the MSI database reports an x64 package.
-- macOS: `JVC_2.0.0_universal.dmg` (5,932,142 bytes). The bundled app executable was identified as a Mach-O universal binary containing both `x86_64` and `arm64`.
-- Android: `app-debug.apk` (4,075,438 bytes). The APK contains an Android Debug certificate and an APK signing block; it is not signed with a private production upload key.
+- `cargo metadata --locked` passed, and the shared npm/Cargo lockfiles plus all 2.0.1 version metadata were validated.
+- The shared React/Vite frontend build passed.
+- Windows produced `JVC_2.0.1_x64-setup.exe` (2,048,365 bytes) and `JVC_2.0.1_x64_en-US.msi` (3,059,712 bytes); CI checked that both installer types existed.
+- macOS produced `JVC_2.0.1_universal.dmg` (5.65 MiB). CI confirmed the app executable contains both `x86_64` and `arm64`, and verified that the generated `Info.plist` contains both camera and microphone usage descriptions.
+- Android produced version `2.0.1`, versionCode `20001`. CI verified the debug APK signature and confirmed the manifest contains CAMERA, RECORD_AUDIO and MODIFY_AUDIO_SETTINGS. The APK uses the Android Debug certificate, not a private production upload key. The unsigned release AAB was also built and passed ZIP archive integrity validation.
 
-SHA-256 hashes of the inspected installer files:
+GitHub Actions artifacts (temporary, retained for 14 days):
 
-~~~text
-Windows NSIS: ab484b6cd9c474940d8d534d0e09de7409046349c2b4c1b0ad40e8caadf44e36
-Windows MSI:  c238ee8a5c4b79ab384baea2a3a8440f8851cb18e6bd35184575fc8ee092a9dd
-macOS DMG:    a69b2d9fa980d38376803a91d7e4125f1453f2663d4b4fac22d6fa2a8a700542
-Android APK:  1c2fb4da3cbb5407f2eb0c7e55490fcf81a7430c0b0c20cb06f08ed0e23fa72d
-~~~
+- [Windows x64 installers](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14314221778) — artifact archive 4,877,394 bytes
+- [Universal macOS package](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14313532954) — artifact archive 11,973,570 bytes
+- [Android debug APK](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14314450508) — artifact archive 3,703,559 bytes
+- [Android unsigned release AAB](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14313014247) — artifact archive 2,826,646 bytes
 
-These are CI build and static artifact checks, not installation or runtime tests. No Windows VM, Intel Mac, Apple Silicon Mac or physical Android device was available for interactive testing. The run's temporary artifacts are retained by GitHub Actions for 14 days.
+These are CI compilation, packaging and static artifact checks, not interactive installation or runtime tests. No Windows VM, Intel Mac, Apple Silicon Mac or physical Android device was available. Camera/microphone permission flows, voice/video calls, notifications and clipboard UX still require real-device QA.
 
-The public `v2.0.0` GitHub Release was created from an earlier commit (`b72c1de`). The successful build above validates newer main commit `f8873ac`, but those newer artifacts have not been attached to a release. Do not imply the existing public release contains the newer source until a new version tag is cut and its release assets are checked.
-
+The public [`v2.0.0` release](https://github.com/Jigar1234Nob/JVC/releases/tag/v2.0.0) predates this source and points to commit `b72c1de`. The 2.0.1 artifacts above are not attached to that release. No `v2.0.1` tag or public release has been created. Pushing a matching tag will create a draft release containing the unsigned QA packages; it must be signed, checked and manually published.
 ## Signing and packaging
 
 Never commit certificates, keystores, passwords, provisioning profiles or API keys.
