@@ -39,10 +39,10 @@ if not gradle.exists():
     raise SystemExit("Capacitor app/build.gradle was not generated")
 
 build = gradle.read_text()
-build, code_count = re.subn(r"(?m)^(\s*versionCode\s+)\d+", r"\g<1>20000", build, count=1)
+build, code_count = re.subn(r"(?m)^(\s*versionCode\s+)\d+", r"\g<1>20001", build, count=1)
 build, name_count = re.subn(
     r"(?m)^(\s*versionName\s+)[\"'][^\"']+[\"']",
-    r"\g<1>'2.0.0'",
+    r"\g<1>'2.0.1'",
     build,
     count=1,
 )
