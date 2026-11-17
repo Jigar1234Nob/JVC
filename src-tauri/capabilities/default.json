@@ -7,6 +7,7 @@
   ],
   "permissions": [
     "core:default",
-    "camera-kessdev:default"
+    "camera-kessdev:default",
+    "opener:default"
   ]
 }
