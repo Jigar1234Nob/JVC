@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   resolve-dependencies:
-    name: Resolve shared npm dependency lock
+    name: Resolve shared npm and Rust dependency locks
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -25,31 +25,48 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Check for a committed npm lockfile
-        id: lockfile
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.100.0
+      - name: Check for committed dependency lockfiles
+        id: lockfiles
         shell: bash
         run: |
           if [ -f package-lock.json ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "npm_exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "npm_exists=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Generate the initial lockfile when absent
-        if: steps.lockfile.outputs.exists == 'false'
+          if [ -f src-tauri/Cargo.lock ]; then
+            echo "cargo_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cargo_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate the npm lockfile when absent
+        if: steps.lockfiles.outputs.npm_exists == 'false'
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Commit the initial lockfile on main
-        if: steps.lockfile.outputs.exists == 'false' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Generate the Rust lockfile when absent
+        if: steps.lockfiles.outputs.cargo_exists == 'false'
+        run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+      - name: Validate the Rust lockfile
+        run: cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml > /dev/null
+      - name: Commit generated lockfiles on main
+        if: (steps.lockfiles.outputs.npm_exists == 'false' || steps.lockfiles.outputs.cargo_exists == 'false') && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "Add npm lockfile for reproducible CI builds"
-          git push
+          git add package-lock.json src-tauri/Cargo.lock
+          if ! git diff --cached --quiet; then
+            git commit -m "Add dependency lockfiles for reproducible builds"
+            git push
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: jvc-node-lock
-          path: package-lock.json
+          name: jvc-dependency-locks
+          path: |
+            package-lock.json
+            src-tauri/Cargo.lock
           if-no-files-found: error
           retention-days: 7
 
@@ -70,12 +87,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: jvc-node-lock
+          name: jvc-dependency-locks
           path: .
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.100.0
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -93,6 +112,17 @@ jobs:
           else
             npm run desktop:build
           fi
+      - name: Verify Windows installer outputs
+        if: matrix.target == 'windows-x64'
+        shell: pwsh
+        run: |
+          $bundleRoot = "src-tauri/target/release/bundle"
+          $exe = Get-ChildItem $bundleRoot -Recurse -Filter *.exe -File
+          $msi = Get-ChildItem $bundleRoot -Recurse -Filter *.msi -File
+          if ($exe.Count -lt 1) { throw "No NSIS .exe installer was produced." }
+          if ($msi.Count -lt 1) { throw "No MSI installer was produced." }
+          $exe | ForEach-Object { Write-Host "NSIS: $($_.FullName) ($($_.Length) bytes)" }
+          $msi | ForEach-Object { Write-Host "MSI: $($_.FullName) ($($_.Length) bytes)" }
       - name: Verify universal macOS executable
         if: matrix.target == 'macos-universal'
         shell: bash
@@ -102,6 +132,13 @@ jobs:
           echo "JVC architectures: $ARCHS"
           grep -qw x86_64 <<< "$ARCHS"
           grep -qw arm64 <<< "$ARCHS"
+      - name: Verify macOS camera and microphone usage descriptions
+        if: matrix.target == 'macos-universal'
+        shell: bash
+        run: |
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/JVC.app"
+          /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$APP/Contents/Info.plist" >/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$APP/Contents/Info.plist" >/dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-${{ matrix.target }}
@@ -116,7 +153,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: jvc-node-lock
+          name: jvc-dependency-locks
           path: .
       - uses: actions/setup-node@v4
         with:
