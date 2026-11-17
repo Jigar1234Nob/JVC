@@ -1,70 +1,57 @@
 # JVC
 
-**JVC (Jigar Virtual Client)** is a lightweight Discord-inspired client shell for [chat.jigar.au](https://chat.jigar.au), with a shared React interface and a permission centre.
+**JVC (Jigar Virtual Client)** is a lightweight client shell for [chat.jigar.au](https://chat.jigar.au), using the supplied J. logo and a shared React startup/update screen.
 
-## Desktop: Rust + Tauri 2
+## Architecture
 
-Windows and macOS use **Tauri 2**, with a small Rust application and the operating system's native WebView (WebView2 on Windows, WKWebView on macOS). Unlike Electron, JVC does not bundle a separate Chromium runtime.
+- **Windows and macOS:** Tauri 2 with the operating system's native WebView. JVC is not an Electron application.
+- **Android:** Capacitor 7 with Android System WebView and checked-in native permission/navigation overrides.
+- **Chat:** loaded as a top-level HTTPS page at https://chat.jigar.au. The app does not rely on an iframe.
 
-Expected benefits:
-- Smaller installers and less bundled runtime overhead.
-- Lower idle memory use.
-- Faster cold startup.
-- Native OS web rendering and window integration.
-
-Actual performance depends on the host OS and the chat website. The chat itself still loads over the network.
-
-## Platforms
-
-- **Windows:** Tauri NSIS and MSI installers.
-- **macOS:** Tauri application bundle and DMG.
-- **Android:** Capacitor debug APK in CI. A signed store release needs signing configuration.
-- **Web:** Vite development preview.
+The desktop shell keeps only the local app origin and the exact HTTPS chat origin in-app. External HTTP(S), mailto and tel links are handed to the system default app. Android uses the same allowlist and applies an explicit origin/resource gate to camera and microphone requests.
 
 ## Development
 
-Requires Node.js 22+, Rust stable, and the platform's Tauri prerequisites.
+Requires Node.js 22+, Rust stable, and the native prerequisites for the target OS.
 
-```bash
+~~~bash
 npm install
 npm run dev
-```
+~~~
 
-## Desktop development and builds
+## Desktop builds
 
-```bash
+~~~bash
 npm install
 npm run desktop:dev
 npm run desktop:build
-```
+~~~
 
-Tauri builds must run on the target operating system. GitHub Actions builds Windows and macOS artifacts separately and attaches them to the workflow run.
-
-Platform prerequisites: https://v2.tauri.app/start/prerequisites/
+Tauri builds must run on the target operating system. GitHub Actions builds Windows x64 and a universal macOS package for Intel and Apple Silicon.
 
 ## Android
 
-```bash
+~~~bash
 npm install
 npm run build
 npx cap add android
 npx cap sync android
-```
+bash apps/android/apply-native-overlay.sh
+npx cap open android
+~~~
 
-Open the generated Android project in Android Studio. CI also creates a debug APK. A signed release requires a private keystore and signing configuration; never commit signing credentials.
+CI creates a debug-signed APK for testing. A Play Store release requires a private upload keystore and a signed AAB.
 
-## Security and embedding
+## CI and releases
 
-The chat website must permit embedding. If it sends `X-Frame-Options: DENY` or a restrictive CSP `frame-ancestors`, the embedded view will be blocked. Configure the chat service to permit the intended JVC app origin; JVC does not bypass browser protections.
+Pull requests and pushes to main build platform artifacts. A Git tag matching v* triggers a GitHub Release after all three platform jobs pass. The startup checker reads the latest non-draft GitHub Release and offers the matching installer.
 
-Android WebView camera and microphone permission delegation must be implemented and tested with a strict origin/resource allowlist before production release. The CI Android APK is a development build, not a signed store release.
+The current packages are unsigned desktop builds and a debug-signed Android APK. Do not treat them as production-signed installers.
 
-## Release checklist
+## Security, site configuration and privacy
 
-- [ ] Verify chat.jigar.au embedding headers and login flow.
-- [ ] Test Tauri camera, microphone, notifications and clipboard permissions on Windows and macOS.
-- [ ] Implement/test Android WebView camera and microphone permission delegation.
-- [ ] Test file upload, notifications, clipboard, deep links and screen sharing on real devices.
-- [ ] Configure Android signing and store privacy disclosures.
-- [ ] Configure Windows/macOS signing and update distribution.
-- [ ] Test packaged apps on clean OS installations.
+The live chat service must be checked for HTTPS redirects, Permissions-Policy and framing headers before release. JVC currently uses direct top-level navigation, so X-Frame-Options and CSP frame-ancestors do not block the current navigation flow. If the site is changed to iframe embedding, it must explicitly allow the actual parent origin in CSP.
+
+Android media requests are restricted to https://chat.jigar.au and the specific microphone/camera WebView resources. Android notifications and clipboard behavior still require physical-device verification; reliable background push requires native integration.
+
+See [docs/RELEASE.md](docs/RELEASE.md) for build, signing, privacy, update-distribution and release checklists.
