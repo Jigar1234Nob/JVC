@@ -50,6 +50,37 @@ jobs:
         run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
       - name: Validate the Rust lockfile
         run: cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml > /dev/null
+      - name: Verify all app version metadata is aligned
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const root = require("./package.json");
+          const web = require("./apps/web/package.json");
+          const lock = require("./package-lock.json");
+          const tauri = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
+          const cargoText = fs.readFileSync("src-tauri/Cargo.toml", "utf8");
+          const androidScript = fs.readFileSync("apps/android/apply-native-overlay.sh", "utf8");
+          const cargoVersion = cargoText.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
+          const androidVersion = androidScript.match(/versionName\\s+['"]([^'"]+)['"]/)?.[1];
+          const androidCode = Number(androidScript.match(/versionCode\\s+(\\d+)/)?.[1]);
+          const [major, minor, patch] = root.version.split(".").map(Number);
+          const expectedCode = major * 10000 + minor * 100 + patch;
+          const versions = {
+            package: root.version,
+            web: web.version,
+            lock: lock.version,
+            lockRoot: lock.packages[""].version,
+            lockWeb: lock.packages["apps/web"].version,
+            tauri: tauri.version,
+            cargo: cargoVersion,
+            android: androidVersion
+          };
+          console.log(versions);
+          if (Object.values(versions).some(version => version !== root.version) || androidCode !== expectedCode) {
+            throw new Error(`JVC version metadata mismatch (Android code expected ${expectedCode}, got ${androidCode}).`);
+          }
+          NODE
       - name: Commit generated lockfiles on main
         if: (steps.lockfiles.outputs.npm_exists == 'false' || steps.lockfiles.outputs.cargo_exists == 'false') && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
@@ -196,6 +227,16 @@ jobs:
       - name: Verify Android APK signature
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify Android app version and media permissions
+        shell: bash
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          VERSION="$(node -p "require('./package.json').version")"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          "$AAPT" dump badging "$APK" | grep -F "versionName='$VERSION'"
+          "$AAPT" dump permissions "$APK" | grep -F "android.permission.CAMERA"
+          "$AAPT" dump permissions "$APK" | grep -F "android.permission.RECORD_AUDIO"
+          "$AAPT" dump permissions "$APK" | grep -F "android.permission.MODIFY_AUDIO_SETTINGS"
       - name: Build Android release bundle
         run: cd android && ./gradlew bundleRelease
       - name: Verify Android release bundle archive
