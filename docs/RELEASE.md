@@ -38,6 +38,16 @@ Do not send X-Frame-Options: DENY or SAMEORIGIN for a cross-origin iframe. ALLOW
 
 For media capture, the site should serve HTTPS and its Permissions-Policy must not disable camera or microphone for the top-level chat origin. If the chat page embeds a third-party call frame, that frame needs its own explicit allow="camera; microphone" delegation and a compatible policy. JVC's Android native gate intentionally denies media requests from any origin other than exactly https://chat.jigar.au.
 
+## Desktop WebView permissions and navigation
+
+The Tauri window permits only the exact HTTPS chat origin and its own internal app origin. Other top-level HTTP(S), mailto and tel navigations are opened with the operating system's default app; unsupported schemes are blocked. New-window requests are sent to the default app and denied inside JVC.
+
+Camera and microphone requests are passed to the native WebView permission UI only while the top-level page is exactly https://chat.jigar.au. Every other permission kind is denied. The community camera plugin previously included in this project installed its own Windows/Linux permission handler that allowed camera and microphone before the application handler could apply its origin check. That plugin was removed so the JVC gate remains authoritative.
+
+Tauri's permission callback exposes the WebView's current top-level URL, not a separate requesting-frame origin. The Android implementation below has a stricter frame-origin check because Android's PermissionRequest API provides the requesting origin directly. Do not embed third-party media frames in desktop until their permissions and frame policy have been reviewed.
+
+Tauri's documented platform support is not uniform: web notification permission requests are supported on Windows and Linux but not macOS/Android/iOS; clipboard-read permission callbacks are supported on Windows but not macOS/Linux/Android/iOS. These are callback/backend limits, not proof that every website clipboard or notification feature works. Verify actual chat-site behavior on each OS before advertising it.
+
 ## Android WebView security
 
 apps/android/apply-native-overlay.sh copies the checked-in Capacitor MainActivity, WebChromeClient and WebViewClient overrides into the generated Android project.
