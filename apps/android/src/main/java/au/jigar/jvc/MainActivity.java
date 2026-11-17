@@ -115,6 +115,10 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void cancelPendingRequest(PermissionRequest request) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(() -> cancelPendingRequest(request));
+            return;
+        }
         if (request == pendingRequest) {
             clearPendingRequest();
         }
