@@ -2,6 +2,7 @@
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_camera_kessdev::init())
         .run(tauri::generate_context!())
         .expect("failed to start JVC");
 }
