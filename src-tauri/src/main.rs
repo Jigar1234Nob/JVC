@@ -15,11 +15,18 @@ fn is_chat_origin(url: &tauri::Url) -> bool {
 }
 
 fn is_internal_app_origin(url: &tauri::Url) -> bool {
-    let host = url.host_str();
-    (url.scheme() == "tauri" && host == Some("localhost"))
-        || (url.scheme() == "http" && host == Some("tauri.localhost"))
-        || (url.scheme() == "https" && host == Some("tauri.localhost"))
-        || ((url.scheme() == "http" || url.scheme() == "https") && host == Some("localhost"))
+    if !url.username().is_empty() || url.password().is_some() {
+        return false;
+    }
+
+    match (url.scheme(), url.host_str(), url.port()) {
+        ("tauri", Some("localhost"), None) => true,
+        ("http", Some("tauri.localhost"), None | Some(80)) => true,
+        ("https", Some("tauri.localhost"), None | Some(443)) => true,
+        #[cfg(debug_assertions)]
+        ("http", Some("localhost"), Some(5173)) => true,
+        _ => false,
+    }
 }
 
 fn open_in_default_browser(app: &tauri::AppHandle, url: &tauri::Url) {
@@ -54,6 +61,10 @@ fn main() {
 
                     match permission {
                         PermissionKind::Camera | PermissionKind::Microphone => {
+                            PermissionResponse::Default
+                        }
+                        #[cfg(target_os = "windows")]
+                        PermissionKind::Notifications | PermissionKind::ClipboardRead => {
                             PermissionResponse::Default
                         }
                         _ => PermissionResponse::Deny,

@@ -104,7 +104,7 @@ export default function App() {
     } catch {
       target = RELEASES_PAGE;
     }
-    window.open(target, "_blank", "noopener,noreferrer");
+    window.location.assign(target);
   };
 
   return (

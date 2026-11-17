@@ -18,13 +18,34 @@ jobs:
   resolve-dependencies:
     name: Resolve shared npm dependency lock
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Generate one lock snapshot for this build
+      - name: Check for a committed npm lockfile
+        id: lockfile
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate the initial lockfile when absent
+        if: steps.lockfile.outputs.exists == 'false'
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit the initial lockfile on main
+        if: steps.lockfile.outputs.exists == 'false' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Add npm lockfile for reproducible CI builds"
+          git push
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-node-lock
@@ -72,6 +93,15 @@ jobs:
           else
             npm run desktop:build
           fi
+      - name: Verify universal macOS executable
+        if: matrix.target == 'macos-universal'
+        shell: bash
+        run: |
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/JVC.app/Contents/MacOS/jvc"
+          ARCHS="$(lipo -archs "$APP")"
+          echo "JVC architectures: $ARCHS"
+          grep -qw x86_64 <<< "$ARCHS"
+          grep -qw arm64 <<< "$ARCHS"
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-${{ matrix.target }}
@@ -126,6 +156,8 @@ jobs:
         run: bash apps/android/apply-native-overlay.sh
       - name: Build Android debug APK
         run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Verify Android APK signature
+        run: "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/debug/app-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: jvc-android-debug

@@ -13,40 +13,48 @@ The current CI packages are unsigned desktop builds and a debug-signed Android A
 
 ## Embedding and site headers
 
-JVC currently navigates the main WebView directly to https://chat.jigar.au. It does not use an iframe. Top-level WebView navigation is not blocked by X-Frame-Options or CSP frame-ancestors; those headers control framed documents.
+JVC loads https://chat.jigar.au as a **top-level page** in the native WebView. It does not use an HTML iframe. The earlier iframe approach was not reliable, so the shared shell redirects the WebView directly to the chat origin.
 
-The live response headers could not be inspected from the build environment during this release preparation. Before shipping, run:
+This distinction matters:
+
+- `X-Frame-Options` and CSP `frame-ancestors` control whether a page may be displayed inside a frame. They do not prevent a normal top-level navigation to the same URL.
+- No site-side framing-header change is required for the current direct-navigation architecture.
+- A top-level WebView still needs the site to be reachable over valid HTTPS and not blocked by unrelated access controls. The current site response and media behavior have **not** been certified.
+
+**Live-header verification attempt, 17 November 2026:** the build container's `curl -sSIL https://chat.jigar.au/` failed with `Could not resolve host`, and the available browser fetch also reported the site as inaccessible. Therefore the actual redirect chain and response-header values could not be observed. Do not treat the site-side check as passed.
+
+When network access is available, run:
 
 ~~~sh
-curl -sSIL https://chat.jigar.au/
+curl -sSIL --max-time 20 https://chat.jigar.au/
 ~~~
 
 Inspect every redirect and the final response for:
 
-- X-Frame-Options
-- Content-Security-Policy, especially frame-ancestors
-- Permissions-Policy, especially camera and microphone
+- `X-Frame-Options`
+- `Content-Security-Policy`, especially `frame-ancestors`
+- `Permissions-Policy`, especially `camera` and `microphone`
 - HTTPS certificate and redirect behavior
 
-If the site is later placed inside an iframe, configure the site's CSP to allow only the actual parent origin(s), for example:
+If JVC is deliberately changed back to iframe embedding, the chat response must allow the exact parent origin(s) observed from the actual Tauri and Capacitor shells in `frame-ancestors`. Do not use a wildcard. Remove or avoid a conflicting `X-Frame-Options: DENY` or `SAMEORIGIN`; `ALLOW-FROM` is obsolete. Keep the site's normal anti-clickjacking policy for every other route.
 
-~~~http
-Content-Security-Policy: frame-ancestors 'self' https://your-approved-parent.example
-~~~
+For the current top-level page, an explicit site `Permissions-Policy` must not disable the chat origin's own camera and microphone access. A suitable starting point is `camera=(self), microphone=(self)`. If the chat page embeds a third-party calling provider, that provider needs a matching policy allowlist and iframe `allow="camera; microphone"`; Android JVC will still deny media requests from that third-party origin until the native allowlist is separately reviewed and changed.
 
-Do not send X-Frame-Options: DENY or SAMEORIGIN for a cross-origin iframe. ALLOW-FROM is obsolete; use CSP frame-ancestors. Do not weaken these headers globally. The native JVC clients should continue to use direct top-level navigation unless a verified site-side iframe requirement exists.
-
-For media capture, the site should serve HTTPS and its Permissions-Policy must not disable camera or microphone for the top-level chat origin. If the chat page embeds a third-party call frame, that frame needs its own explicit allow="camera; microphone" delegation and a compatible policy. JVC's Android native gate intentionally denies media requests from any origin other than exactly https://chat.jigar.au.
+The local Tauri CSP is for JVC's startup shell and does not replace the remote chat site's own response policy.
 
 ## Desktop WebView permissions and navigation
 
-The Tauri window permits only the exact HTTPS chat origin and its own internal app origin. Other top-level HTTP(S), mailto and tel navigations are opened with the operating system's default app; unsupported schemes are blocked. New-window requests are sent to the default app and denied inside JVC.
+The desktop app uses **Tauri 2**, not Electron. There is no Electron main process, BrowserWindow, session permission handler or Electron navigation layer in this repository, so Electron-specific hooks do not apply. The equivalent native controls are implemented in `src-tauri/src/main.rs`.
 
-Camera and microphone requests are passed to the native WebView permission UI only while the top-level page is exactly https://chat.jigar.au. Every other permission kind is denied. The community camera plugin previously included in this project installed its own Windows/Linux permission handler that allowed camera and microphone before the application handler could apply its origin check. That plugin was removed so the JVC gate remains authoritative.
+- Only the exact HTTPS chat origin and Tauri's known local app origins remain inside the app. The development server exception is limited to `http://localhost:5173` in debug builds.
+- External HTTP(S), `mailto:` and `tel:` navigations are handed to the system default app. Other schemes are blocked.
+- New-window requests are opened externally and denied inside JVC.
+- Camera and microphone requests are passed to the native WebView permission UI only while the top-level page is exactly `https://chat.jigar.au`.
+- On Windows, Tauri's supported `Notifications` and `ClipboardRead` permission kinds are also passed to the native WebView prompt for the trusted chat page. All other permission kinds are denied.
 
-Tauri's permission callback exposes the WebView's current top-level URL, not a separate requesting-frame origin. The Android implementation below has a stricter frame-origin check because Android's PermissionRequest API provides the requesting origin directly. Do not embed third-party media frames in desktop until their permissions and frame policy have been reviewed.
+Tauri's permission callback exposes the WebView's current top-level URL, not a separate requesting-frame origin. The desktop media gate therefore cannot distinguish a third-party iframe from the trusted top-level chat page. Do not embed third-party media frames in desktop until their permission delegation has been reviewed. The Android gate is stricter because Android's `PermissionRequest` exposes the requesting origin.
 
-Tauri's documented platform support is not uniform: web notification permission requests are supported on Windows and Linux but not macOS/Android/iOS; clipboard-read permission callbacks are supported on Windows but not macOS/Linux/Android/iOS. These are callback/backend limits, not proof that every website clipboard or notification feature works. Verify actual chat-site behavior on each OS before advertising it.
+Tauri documents notification permission support on Windows and Linux, but not macOS/Android/iOS; clipboard-read permission callbacks are supported on Windows only. Clipboard writes generally depend on the web engine's user-gesture rules. These are backend capability limits, not proof that the chat website's notification or clipboard UX works on a particular OS. See the platform matrix at https://docs.rs/tauri/latest/tauri/webview/enum.PermissionKind.html.
 
 ## Android WebView security
 
@@ -67,9 +75,11 @@ Android PermissionRequest.grant() must receive only the specific resources being
 
 ### Notifications and clipboard
 
-The wrapper does not currently provide a native push-notification bridge. Do not promise background push delivery from the Android WebView. If the chat service requires reliable background notifications, integrate Firebase Cloud Messaging or a Capacitor native notifications plugin with server-side registration and a user-visible opt-in flow.
+Android System WebView does not provide the normal web Notifications API and Push API used by browser tabs. JVC has no Firebase Cloud Messaging (FCM) bridge or native push-registration service. Therefore Android JVC must not advertise web push or dependable background notifications. Reliable Android notifications require a separately designed native FCM integration and server-side device registration. References: https://issues.chromium.org/issues/40388442 and https://blog.chromium.org/2019/02/introducing-trusted-web-activity-for.html
 
-Clipboard behavior is supplied by Android WebView and the chat website. Clipboard writes should be initiated by a user action. Clipboard reads may require a secure context, browser permission and user activation; they must be tested on supported Android System WebView versions. No broad clipboard permission is granted by the native wrapper. See https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/readText
+JVC does not add a native clipboard bridge or broad clipboard permission. Basic selection and the Android WebView context-menu copy/paste path are supplied by the platform. JavaScript's Async Clipboard API requires a secure context and is subject to user-activation and implementation-specific permission rules; clipboard reads can fail with `NotAllowedError` on WebView versions that do not expose a compatible read-permission flow. Test the exact Android System WebView versions in the support matrix before relying on `navigator.clipboard.readText()`. References: https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API and https://developer.android.com/develop/ui/views/touch-and-input/copy-paste
+
+The custom `JvcWebChromeClient` preserves Capacitor's dialogs and file chooser while replacing its permissive media callback with JVC's strict origin/resource gate. It does not add notification or clipboard support.
 
 Required real-device QA:
 - deny camera and microphone, then verify calls remain blocked;
@@ -88,13 +98,36 @@ The GitHub Actions workflow builds:
 
 | Platform | Runner | Package |
 |---|---|---|
-| Windows x64 | windows-2025 | NSIS .exe and MSI |
-| macOS universal | macos-15 Apple Silicon runner | Universal .dmg and .app for Intel + Apple Silicon |
-| Android | ubuntu-24.04 | Debug .apk |
+| Windows x64 | windows-2025 | NSIS `.exe` and MSI |
+| macOS universal | macos-15 Apple Silicon runner | Universal `.dmg` and `.app` for Intel + Apple Silicon |
+| Android | ubuntu-24.04 | Debug `.apk` |
 
-The workflow resolves one npm lock snapshot per run and shares it with all platform jobs. For fully repeatable builds across separate runs, commit the generated package-lock.json and use it as the source-of-truth lockfile before cutting a production release.
+The workflow uses a committed root `package-lock.json` when present. If the lockfile is absent on the first push to `main`, the resolver creates and commits it with the workflow's restricted `GITHUB_TOKEN`; all platform jobs consume the same lock artifact and run `npm ci`. Tags created before the bootstrap lockfile may still resolve a one-run lock snapshot, so do not use an old tag as evidence of cross-run dependency reproducibility.
 
-Pull requests and main-branch pushes build artifacts but do not publish a release. Publishing is tag-driven: push a version tag such as v2.1.0 after the release checklist is complete. The workflow then attaches the platform packages to that GitHub Release. The in-app update checker reads the latest non-draft release, so only publish tags intended for end users.
+Pull requests and main-branch pushes build artifacts but do not publish a release. Publishing is tag-driven: push a version tag such as `v2.1.0` after the release checklist is complete. The workflow then attaches the platform packages to that GitHub Release. The in-app update checker reads the latest non-draft release, so only publish tags intended for end users.
+
+### Automated validation record
+
+On 17 November 2026, workflow run [#44043382549](https://github.com/Jigar1234Nob/JVC/actions/runs/44043382549) completed successfully for main commit `f8873ac57c3a5d4fb6862796e492431d789862ee`. The dependency resolver, Windows x64, universal macOS and Android jobs all passed. The tag-only publish job was correctly skipped for this main-branch build.
+
+The downloaded artifacts were inspected:
+
+- Windows: `JVC_2.0.0_x64-setup.exe` (2,048,995 bytes) and `JVC_2.0.0_x64_en-US.msi` (3,059,712 bytes). The executable was identified as a Windows PE/NSIS installer and the MSI database reports an x64 package.
+- macOS: `JVC_2.0.0_universal.dmg` (5,932,142 bytes). The bundled app executable was identified as a Mach-O universal binary containing both `x86_64` and `arm64`.
+- Android: `app-debug.apk` (4,075,438 bytes). The APK contains an Android Debug certificate and an APK signing block; it is not signed with a private production upload key.
+
+SHA-256 hashes of the inspected installer files:
+
+~~~text
+Windows NSIS: ab484b6cd9c474940d8d534d0e09de7409046349c2b4c1b0ad40e8caadf44e36
+Windows MSI:  c238ee8a5c4b79ab384baea2a3a8440f8851cb18e6bd35184575fc8ee092a9dd
+macOS DMG:    a69b2d9fa980d38376803a91d7e4125f1453f2663d4b4fac22d6fa2a8a700542
+Android APK:  1c2fb4da3cbb5407f2eb0c7e55490fcf81a7430c0b0c20cb06f08ed0e23fa72d
+~~~
+
+These are CI build and static artifact checks, not installation or runtime tests. No Windows VM, Intel Mac, Apple Silicon Mac or physical Android device was available for interactive testing. The run's temporary artifacts are retained by GitHub Actions for 14 days.
+
+The public `v2.0.0` GitHub Release was created from an earlier commit (`b72c1de`). The successful build above validates newer main commit `f8873ac`, but those newer artifacts have not been attached to a release. Do not imply the existing public release contains the newer source until a new version tag is cut and its release assets are checked.
 
 ## Signing and packaging
 

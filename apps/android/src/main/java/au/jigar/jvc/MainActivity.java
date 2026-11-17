@@ -27,6 +27,8 @@ public class MainActivity extends BridgeActivity {
 
         Bridge bridge = getBridge();
         if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().getSettings().setSupportMultipleWindows(true);
+            bridge.getWebView().getSettings().setJavaScriptCanOpenWindowsAutomatically(false);
             bridge.getWebView().setWebChromeClient(
                 new JvcWebChromeClient(bridge, new JvcWebChromeClient.PermissionRequestDelegate() {
                     @Override
