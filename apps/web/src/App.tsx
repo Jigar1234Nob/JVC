@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const CURRENT_VERSION = "2.0.0";
+const CURRENT_VERSION = "2.0.1";
 const RELEASE_API = "https://api.github.com/repos/Jigar1234Nob/JVC/releases/latest";
 const RELEASES_PAGE = "https://github.com/Jigar1234Nob/JVC/releases";
 const CHAT_URL = "https://chat.jigar.au";
