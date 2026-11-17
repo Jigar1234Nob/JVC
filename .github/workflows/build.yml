@@ -221,6 +221,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify tag matches the checked-in app version
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Release tag $GITHUB_REF_NAME does not match app version $VERSION." >&2
+            exit 1
+          fi
       - name: Download Windows installers
         uses: actions/download-artifact@v4
         with:
@@ -236,19 +249,30 @@ jobs:
         with:
           name: jvc-android-debug
           path: release-assets/android
+      - name: Download unsigned Android release bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: jvc-android-release-unsigned
+          path: release-assets/android
       - name: List release installers
         shell: bash
         run: find release-assets -type f -print
-      - name: Publish GitHub Release
+      - name: Publish GitHub draft release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: JVC ${{ github.ref_name }}
           generate_release_notes: true
-          make_latest: true
+          draft: true
+          make_latest: false
           fail_on_unmatched_files: true
+          body: |
+            Automated JVC build candidate for QA and release preparation.
+
+            This draft contains unsigned Windows and macOS installers, a debug-signed Android APK, and an unsigned Android AAB. Do not publish it as a production release until the desktop packages and Android bundle have been signed, the required runtime/device checks have passed, and the privacy disclosures are complete. Replace the draft assets with the signed production packages before publishing.
           files: |
             release-assets/windows/**/*.exe
             release-assets/windows/**/*.msi
             release-assets/macos/**/*.dmg
             release-assets/android/**/*.apk
+            release-assets/android/**/*.aab
