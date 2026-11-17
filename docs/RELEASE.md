@@ -100,7 +100,7 @@ The GitHub Actions workflow builds:
 |---|---|---|
 | Windows x64 | windows-2025 | NSIS `.exe` and MSI |
 | macOS universal | macos-15 Apple Silicon runner | Universal `.dmg` and `.app` for Intel + Apple Silicon |
-| Android | ubuntu-24.04 | Debug `.apk` |
+| Android | ubuntu-24.04 | Debug `.apk` + unsigned release `.aab` |
 
 The workflow uses a committed root `package-lock.json` when present. If the lockfile is absent on the first push to `main`, the resolver creates and commits it with the workflow's restricted `GITHUB_TOKEN`; all platform jobs consume the same lock artifact and run `npm ci`. Tags created before the bootstrap lockfile may still resolve a one-run lock snapshot, so do not use an old tag as evidence of cross-run dependency reproducibility.
 
@@ -157,7 +157,7 @@ A universal binary must contain both arm64 and x86_64 slices. App Store distribu
 
 ### Android
 
-The current APK is signed with the CI debug key. For a production APK/AAB, create a private upload keystore, keep it outside the repository, and configure the Android Gradle release signing block using encrypted GitHub Actions secrets. Keep the same upload key for subsequent Play Store updates and back it up securely. Never publish a debug-key APK as a production update.
+CI builds a debug-signed APK for sideload QA and an unsigned release AAB for the Play release path. For a production APK/AAB, create a private upload keystore, keep it outside the repository, and configure the Android Gradle release signing block using encrypted GitHub Actions secrets. Keep the same upload key for subsequent Play Store updates and back it up securely. Never publish a debug-key APK as a production update.
 
 Before Play distribution, complete Play Console app-content declarations, Data safety answers, target API requirements, privacy policy URL, and notification/camera/microphone disclosures. Use the actual behavior of chat.jigar.au when answering data collection and sharing questions.
 
