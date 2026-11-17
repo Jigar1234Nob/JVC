@@ -2,7 +2,7 @@
 
 use tauri::{
     utils::config::WebviewUrl,
-    webview::{NewWindowResponse, WebviewWindowBuilder},
+    webview::{NewWindowResponse, PermissionKind, PermissionResponse, WebviewWindowBuilder},
     Manager,
 };
 
@@ -19,6 +19,14 @@ fn main() {
                 .min_inner_size(760.0, 560.0)
                 .center()
                 .resizable(true)
+                .on_permission_request(|_, permission| match permission {
+                    // Camera and microphone are never silently granted.
+                    PermissionKind::Camera | PermissionKind::Microphone => {
+                        PermissionResponse::Default
+                    }
+                    // Deny other permissions until JVC adds an explicit flow.
+                    _ => PermissionResponse::Deny,
+                })
                 .on_new_window(move |url, features| {
                     // Only allow secure web popups. Never create javascript:, data:,
                     // file:, or other unexpected windows from remote page content.
