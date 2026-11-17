@@ -118,6 +118,10 @@ jobs:
       - run: npm run build
       - run: npx cap add android
       - run: npx cap sync android
+      - name: Install SVG icon renderer
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - name: Generate Android launcher icons from J. logo
+        run: bash apps/android/generate-icons.sh
       - name: Apply JVC Android navigation and media permission gate
         run: bash apps/android/apply-native-overlay.sh
       - name: Build Android debug APK
