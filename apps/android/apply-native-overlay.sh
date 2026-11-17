@@ -10,6 +10,7 @@ cp apps/android/src/main/java/au/jigar/jvc/JvcWebViewClient.java "$PACKAGE_DIR/J
 
 python3 - <<'PY'
 from pathlib import Path
+import re
 
 manifest = Path("android/app/src/main/AndroidManifest.xml")
 if not manifest.exists():
@@ -32,6 +33,22 @@ if missing:
     )
     content = content.replace(marker, additions + marker, 1)
     manifest.write_text(content)
+
+gradle = Path("android/app/build.gradle")
+if not gradle.exists():
+    raise SystemExit("Capacitor app/build.gradle was not generated")
+
+build = gradle.read_text()
+build, code_count = re.subn(r"(?m)^(\s*versionCode\s+)\d+", r"\g<1>20000", build, count=1)
+build, name_count = re.subn(
+    r"(?m)^(\s*versionName\s+)[\"'][^\"']+[\"']",
+    r"\g<1>'2.0.0'",
+    build,
+    count=1,
+)
+if code_count != 1 or name_count != 1:
+    raise SystemExit("Could not set Android versionCode/versionName in app/build.gradle")
+gradle.write_text(build)
 PY
 
-echo "Applied JVC Android navigation and media-permission overlay."
+echo "Applied JVC Android navigation, media permissions and version metadata."
