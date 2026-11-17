@@ -6,10 +6,10 @@ JVC is a shared React shell around the existing chat service at https://chat.jig
 
 - Windows and macOS desktop clients use Tauri 2 and the operating system WebView. JVC is not an Electron app, so Electron permission hooks do not apply; the equivalent controls live in the Tauri Rust window builder.
 - Android uses Capacitor 7 and Android System WebView.
-- The startup screen checks the latest non-draft GitHub Release and offers the platform package. The check must fail open so an unavailable GitHub API never prevents chat access.
+- The startup screen checks the latest non-draft GitHub Release with an 8-second timeout and offers the matching platform package. The check fails open so an unavailable GitHub API never prevents chat access. Android users can skip an offered update; desktop users can continue on the installed version.
 - Release assets are distributed from https://github.com/Jigar1234Nob/JVC/releases.
 
-The current CI packages are unsigned desktop builds and a debug-signed Android APK. They are useful for QA and sideload testing, not yet store-ready production packages.
+The 2.0.1 build candidate produces unsigned Windows/macOS installers, a debug-signed Android APK for sideload QA, and an unsigned Android AAB for the later Play signing step. These are build outputs, not production-signed packages. Tag builds now create a **draft GitHub Release** so unsigned packages are not accidentally exposed as the latest stable update.
 
 ## Embedding and site headers
 
@@ -40,7 +40,7 @@ If JVC is deliberately changed back to iframe embedding, the chat response must 
 
 For the current top-level page, an explicit site `Permissions-Policy` must not disable the chat origin's own camera and microphone access. A suitable starting point is `camera=(self), microphone=(self)`. If the chat page embeds a third-party calling provider, that provider needs a matching policy allowlist and iframe `allow="camera; microphone"`; Android JVC will still deny media requests from that third-party origin until the native allowlist is separately reviewed and changed.
 
-The local Tauri CSP is for JVC's startup shell and does not replace the remote chat site's own response policy.
+The local Tauri CSP is for JVC's startup shell and does not replace the remote chat site's own response policy. Tauri automatically merges `src-tauri/Info.plist` into the generated macOS bundle; CI now verifies that both camera and microphone usage strings survive bundling. See https://v2.tauri.app/distribute/macos-application-bundle/.
 
 ## Desktop WebView permissions and navigation
 
@@ -75,9 +75,9 @@ Android PermissionRequest.grant() must receive only the specific resources being
 
 ### Notifications and clipboard
 
-Android System WebView does not provide the normal web Notifications API and Push API used by browser tabs. JVC has no Firebase Cloud Messaging (FCM) bridge or native push-registration service. Therefore Android JVC must not advertise web push or dependable background notifications. Reliable Android notifications require a separately designed native FCM integration and server-side device registration. References: https://issues.chromium.org/issues/40388442 and https://blog.chromium.org/2019/02/introducing-trusted-web-activity-for.html
+Android WebView is not a full browser and does not guarantee browser-only features that need browser UI, including web push notifications. JVC does not implement a Firebase Cloud Messaging (FCM) bridge, native push registration, a notification service, or a POST_NOTIFICATIONS flow. Treat web notifications and background push as unsupported in the Android app. Reliable notifications require a separately designed native FCM integration and server-side device registration. References: https://web.dev/articles/web-on-android?hl=en and https://issues.chromium.org/issues/40388442
 
-JVC does not add a native clipboard bridge or broad clipboard permission. Basic selection and the Android WebView context-menu copy/paste path are supplied by the platform. JavaScript's Async Clipboard API requires a secure context and is subject to user-activation and implementation-specific permission rules; clipboard reads can fail with `NotAllowedError` on WebView versions that do not expose a compatible read-permission flow. Test the exact Android System WebView versions in the support matrix before relying on `navigator.clipboard.readText()`. References: https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API and https://developer.android.com/develop/ui/views/touch-and-input/copy-paste
+JVC does not add a native clipboard bridge or broad clipboard permission. Basic selection and the Android WebView context-menu copy/paste path are platform behavior. Chromium's Android WebView implementation explicitly has no CLIPBOARD_READ_WRITE permission grant flow, and the Web Permissions API is not implemented in WebView; clipboard paste is instead gated on recent user interaction. Do not rely on programmatic `navigator.clipboard.readText()` in Android JVC without testing the exact WebView provider/version on a physical device. References: https://chromium.googlesource.com/chromium/src/+/50dd53168a8bbd38f80af2c3b5645c940b785e15/android_webview/browser/aw_content_browser_client.cc and https://developer.android.com/develop/ui/views/touch-and-input/copy-paste
 
 The custom `JvcWebChromeClient` preserves Capacitor's dialogs and file chooser while replacing its permissive media callback with JVC's strict origin/resource gate. It does not add notification or clipboard support.
 
@@ -100,11 +100,11 @@ The GitHub Actions workflow builds:
 |---|---|---|
 | Windows x64 | windows-2025 | NSIS `.exe` and MSI |
 | macOS universal | macos-15 Apple Silicon runner | Universal `.dmg` and `.app` for Intel + Apple Silicon |
-| Android | ubuntu-24.04 | Debug `.apk` + unsigned release `.aab` |
+| Android | ubuntu-24.04 | Debug-signed `.apk` + unsigned release `.aab` |
 
-The workflow uses a committed root `package-lock.json` when present. If the lockfile is absent on the first push to `main`, the resolver creates and commits it with the workflow's restricted `GITHUB_TOKEN`; all platform jobs consume the same lock artifact and run `npm ci`. Tags created before the bootstrap lockfile may still resolve a one-run lock snapshot, so do not use an old tag as evidence of cross-run dependency reproducibility.
+The workflow commits and shares both the root `package-lock.json` and `src-tauri/Cargo.lock`. If either is absent on a push to `main`, the resolver creates it and commits it with the restricted `GITHUB_TOKEN`; every platform job downloads the same lockfile artifact. JavaScript dependencies are installed with `npm ci`, Rust lock consistency is checked with `cargo metadata --locked`, and the Rust compiler is pinned to 1.100.0. Android's SDK platform and build-tools versions are pinned in the workflow. A change to Rust dependencies must update and commit `src-tauri/Cargo.lock` rather than silently resolving a new graph in each platform job.
 
-Pull requests and main-branch pushes build artifacts but do not publish a release. Publishing is tag-driven: push a version tag such as `v2.1.0` after the release checklist is complete. The workflow then attaches the platform packages to that GitHub Release. The in-app update checker reads the latest non-draft release, so only publish tags intended for end users.
+Pull requests and main-branch pushes build artifacts but do not publish a release. Pushing a matching version tag such as `v2.0.1` creates a **draft** GitHub Release containing the Windows installers, universal macOS DMG, debug-signed Android APK and unsigned Android AAB. The tag must match the checked-in package version. Sign the desktop packages and AAB, replace the draft assets, finish device/site/privacy checks, then publish the draft manually. The in-app update checker reads only the latest non-draft release, so it will not offer a draft candidate.
 
 ### Automated validation record
 
@@ -186,5 +186,7 @@ Do not claim JVC itself stores or transmits chat data independently unless that 
 - [ ] Test the universal macOS DMG on Intel and Apple Silicon Macs.
 - [ ] Sign and notarize Windows/macOS packages; sign Android release APK/AAB.
 - [ ] Publish the privacy policy and complete store disclosures.
-- [ ] Create and push the version tag only after all checks pass.
-- [ ] Verify all assets appear on the GitHub Release and the startup checker selects the right package.
+- [ ] Confirm the tag exactly matches the versions in `package.json`, `apps/web/package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
+- [ ] Create and push the version tag only after all checks pass; CI creates a draft release.
+- [ ] Replace draft assets with signed production packages, then publish the draft.
+- [ ] Verify the published release assets and confirm the startup checker selects the correct platform package.
