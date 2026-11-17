@@ -10,20 +10,8 @@
     "frontendDist": "../apps/web/dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "JVC",
-        "width": 1280,
-        "height": 820,
-        "minWidth": 760,
-        "minHeight": 560,
-        "center": true,
-        "resizable": true,
-        "url": "https://chat.jigar.au"
-      }
-    ],
     "security": {
-      "csp": "default-src 'self' asset: http://asset.localhost; frame-src https://chat.jigar.au; connect-src ipc: http://ipc.localhost https://chat.jigar.au; img-src 'self' asset: http://asset.localhost https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self' asset: http://asset.localhost https:; connect-src ipc: http://ipc.localhost https:; img-src 'self' asset: http://asset.localhost https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:"
     }
   },
   "bundle": {
