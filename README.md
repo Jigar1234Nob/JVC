@@ -40,11 +40,11 @@ bash apps/android/apply-native-overlay.sh
 npx cap open android
 ~~~
 
-CI creates a debug-signed APK for testing. A Play Store release requires a private upload keystore and a signed AAB.
+CI creates a debug-signed APK for sideload QA and an unsigned release AAB. A Play Store release requires a private upload keystore and a signed AAB.
 
 ## CI and releases
 
-Pull requests and pushes to main build platform artifacts. A Git tag matching v* triggers a GitHub Release after all three platform jobs pass. The startup checker reads the latest non-draft GitHub Release and offers the matching installer.
+Pull requests and pushes to main build platform artifacts using shared npm and Cargo lockfiles. A matching version tag creates a draft GitHub Release after all three platform jobs pass. Sign the packages, replace the draft assets, complete the release checklist, and publish the draft manually. The startup checker reads only the latest non-draft GitHub Release and offers the matching installer.
 
 The current packages are unsigned desktop builds and a debug-signed Android APK. Do not treat them as production-signed installers.
 
