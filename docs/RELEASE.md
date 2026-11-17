@@ -182,7 +182,7 @@ Do not claim JVC itself stores or transmits chat data independently unless that 
 - [ ] Verify live chat.jigar.au response headers and redirect chain.
 - [ ] Verify login, voice/video calls, file upload and logout on desktop and Android.
 - [ ] Run the Android origin/resource permission matrix above on a physical device.
-- [ ] Test notifications and clipboard on supported OS/WebView versions.
+- [ ] Test Windows WebView2 notification/clipboard-read prompts; confirm macOS and Android web notifications are treated as unsupported; test Android context-menu copy/paste and the programmatic-read fallback.
 - [ ] Test the Windows installer on a clean Windows VM.
 - [ ] Test the universal macOS DMG on Intel and Apple Silicon Macs.
 - [ ] Sign and notarize Windows/macOS packages; sign Android release APK/AAB.
