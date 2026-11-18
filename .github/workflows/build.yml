@@ -57,6 +57,7 @@ jobs:
           const fs = require("node:fs");
           const root = require("./package.json");
           const web = require("./apps/web/package.json");
+          const desktop = require("./apps/desktop/package.json");
           const lock = require("./package-lock.json");
           const tauri = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
           const cargoText = fs.readFileSync("src-tauri/Cargo.toml", "utf8");
@@ -69,6 +70,7 @@ jobs:
           const versions = {
             package: root.version,
             web: web.version,
+            desktop: desktop.version,
             lock: lock.version,
             lockRoot: lock.packages[""].version,
             lockWeb: lock.packages["apps/web"].version,
