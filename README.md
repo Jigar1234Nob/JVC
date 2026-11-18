@@ -54,4 +54,4 @@ The live chat service must be checked for HTTPS redirects, Permissions-Policy an
 
 Android media requests are restricted to https://chat.jigar.au and the specific microphone/camera WebView resources. Android notifications and clipboard behavior still require physical-device verification; reliable background push requires native integration.
 
-See [docs/RELEASE.md](docs/RELEASE.md) for build, signing, privacy, update-distribution and release checklists.
+See [docs/RELEASE.md](docs/RELEASE.md) for build, signing, privacy, update-distribution and release checklists. The archived Electron prototype review is in [docs/LEGACY-ELECTRON-AUDIT.md](docs/LEGACY-ELECTRON-AUDIT.md).
