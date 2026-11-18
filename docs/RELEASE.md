@@ -187,7 +187,7 @@ Do not claim JVC itself stores or transmits chat data independently unless that 
 - [ ] Test the universal macOS DMG on Intel and Apple Silicon Macs.
 - [ ] Sign and notarize Windows/macOS packages; sign Android release APK/AAB.
 - [ ] Publish the privacy policy and complete store disclosures.
-- [ ] Confirm the tag exactly matches the versions in `package.json`, `apps/web/package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
+- [ ] Confirm the tag exactly matches the versions in `package.json`, `apps/web/package.json`, `apps/desktop/package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - [ ] Create and push the version tag only after all checks pass; CI creates a draft release.
 - [ ] Replace draft assets with signed production packages, then publish the draft.
 - [ ] Verify the published release assets and confirm the startup checker selects the correct platform package.
