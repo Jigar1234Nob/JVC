@@ -110,22 +110,22 @@ Pull requests and main-branch pushes build artifacts but do not publish a releas
 
 ### Latest automated validation record
 
-On 17 November 2026, GitHub Actions run [#44052296994](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994) passed for main commit `9dec6bd38c86c6af2a31af89048ac848f92dd736`. The dependency-lock resolver, Windows x64, universal macOS and Android jobs all completed successfully. The tag-only draft-release job was skipped because this was a push to `main`.
+On 18 November 2026, GitHub Actions run [#44258655451](https://github.com/Jigar1234Nob/JVC/actions/runs/44258655451) passed for main commit `af7acf4698f556608aa1ffc7ed4dc9c11336d7ce`. The dependency-lock resolver, Windows x64, universal macOS and Android jobs all completed successfully. The tag-only draft-release job was skipped because this was a push to `main`.
 
 Checks completed in that run:
 
-- `cargo metadata --locked` and the app-version alignment checks passed.
+- `cargo metadata --locked`, app-version alignment and the added `apps/desktop/package.json` version check all passed.
 - The shared React/TypeScript/Vite production build passed on all platform jobs.
-- Windows produced `JVC_2.0.1_x64-setup.exe` (2,046,345 bytes) and `JVC_2.0.1_x64_en-US.msi` (3,059,712 bytes); CI verified both installer types exist.
-- macOS produced `JVC_2.0.1_universal.dmg` (5.65 MiB) and a 20.08 MiB app bundle. CI confirmed the executable contains both `x86_64` and `arm64` slices and checked that camera and microphone usage descriptions survived bundling.
+- Windows produced `JVC_2.0.1_x64-setup.exe` (2,047,107 bytes) and `JVC_2.0.1_x64_en-US.msi` (3,059,712 bytes); CI verified both installer types exist.
+- macOS produced `JVC_2.0.1_universal.dmg` (5.66 MiB). CI confirmed the executable contains both `x86_64` and `arm64` slices and checked that camera and microphone usage descriptions survived bundling.
 - Android produced package `au.jigar.jvc`, versionName `2.0.1`, versionCode `20001`. CI verified the debug APK signature and manifest permissions for CAMERA, RECORD_AUDIO and MODIFY_AUDIO_SETTINGS. The APK uses Android's debug certificate. The unsigned release AAB was also built and passed ZIP archive integrity validation.
 
-GitHub Actions artifacts from that run (temporary; 14-day retention, expiring 1 December 2026):
+GitHub Actions artifacts from that run (temporary; 14-day retention, expiring 2 December 2026):
 
-- [Windows x64 installers](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14314651023) — archive 4,875,382 bytes; SHA-256 `4a23f3eef7aa4834af23692d5290375a093a760214891aa72818562a4b9f5684`
-- [Universal macOS package](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14315245024) — archive 11,985,154 bytes; SHA-256 `73acf7f355797b2d9211d72e3b2bde055cd47d8130b989e6c02475e390e6c8b0`
-- [Android debug APK](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14314840612) — archive 3,703,551 bytes; SHA-256 `71365a71e83a0845a465b658a93bb0a45aa6636025f39dbc838ca44b4aa85b8f`
-- [Android unsigned release AAB](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14314651122) — archive 2,826,646 bytes; SHA-256 `6674d65b5439564495a9da0537fe27a8eeef3ba76332073fc6c890ccd7d690d5`
+- [Windows x64 installers](https://github.com/Jigar1234Nob/JVC/actions/runs/44258655451/artifacts/14407127571) — archive 4,876,134 bytes; SHA-256 `ad796e35465ed1a58aba9ea95222d4a7cb855760ee1e499ee03c4cb4fc9c9285`
+- [Universal macOS package](https://github.com/Jigar1234Nob/JVC/actions/runs/44258655451/artifacts/14407032646) — archive 12,008,237 bytes; SHA-256 `704f7cb3be7f6183380cbcaf17c1ae3900a655773cf9dc8f024ad1782af427ad`
+- [Android debug APK](https://github.com/Jigar1234Nob/JVC/actions/runs/44258655451/artifacts/14406892972) — archive 3,703,555 bytes; SHA-256 `c6ed28eeedcfe32c37244df6c410aed7793bfe8355ac007bff064afd0f5c48ec`
+- [Android unsigned release AAB](https://github.com/Jigar1234Nob/JVC/actions/runs/44258655451/artifacts/14407352206) — archive 2,826,646 bytes; SHA-256 `57bbb6872744bb2d44cf63e98e01adba5dd9ad8795759dcea860025c9fe0ed95`
 
 These results prove CI compilation, packaging and the listed static checks. They do not prove interactive installation or runtime behavior. No Windows VM, Intel Mac, Apple Silicon Mac or physical Android device was available. Camera/microphone prompts, real calls, login, upload, notifications and clipboard UX still need device QA.
 
