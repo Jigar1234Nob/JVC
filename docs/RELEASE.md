@@ -44,7 +44,7 @@ The local Tauri CSP is for JVC's startup shell and does not replace the remote c
 
 ## Desktop WebView permissions and navigation
 
-The desktop app uses **Tauri 2**, not Electron. There is no Electron main process, BrowserWindow, session permission handler or Electron navigation layer in this repository, so Electron-specific hooks do not apply. The equivalent native controls are implemented in `src-tauri/src/main.rs`.
+The desktop app uses **Tauri 2**, not Electron. There is no Electron main process, BrowserWindow, session permission handler or Electron navigation layer in the current repository, so Electron-specific hooks do not apply. The equivalent native controls are implemented in `src-tauri/src/main.rs`. The archived Electron prototype from the supplied source snapshot was audited separately; see [LEGACY-ELECTRON-AUDIT.md](LEGACY-ELECTRON-AUDIT.md).
 
 - Only the exact HTTPS chat origin and Tauri's known local app origins remain inside the app. The development server exception is limited to `http://localhost:5173` in debug builds.
 - External HTTP(S), `mailto:` and `tel:` navigations are handed to the system default app. Other schemes are blocked.
