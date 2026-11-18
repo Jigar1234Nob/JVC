@@ -1,6 +1,6 @@
 {
   "name": "@jvc/desktop-shell",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Lightweight Rust/Tauri desktop shell for JVC"
 }
