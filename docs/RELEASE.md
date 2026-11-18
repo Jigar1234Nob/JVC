@@ -108,28 +108,28 @@ The workflow commits and shares both the root `package-lock.json` and `src-tauri
 
 Pull requests and main-branch pushes build artifacts but do not publish a release. Pushing a matching version tag such as `v2.0.1` creates a **draft** GitHub Release containing the Windows installers, universal macOS DMG, debug-signed Android APK and unsigned Android AAB. The tag must match the checked-in package version. Sign the desktop packages and AAB, replace the draft assets, finish device/site/privacy checks, then publish the draft manually. The in-app update checker reads only the latest non-draft release, so it will not offer a draft candidate.
 
-### Automated validation record
+### Latest automated validation record
 
-On 17 November 2026, GitHub Actions run [#104](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087) passed for main commit `33d8d83cd12815547560582c2c85e8bca7e1d0e7`. The dependency-lock resolver, Windows x64, universal macOS and Android jobs all completed successfully. The tag-only draft-release job was skipped because this was a push to `main`.
+On 17 November 2026, GitHub Actions run [#44052296994](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994) passed for main commit `9dec6bd38c86c6af2a31af89048ac848f92dd736`. The dependency-lock resolver, Windows x64, universal macOS and Android jobs all completed successfully. The tag-only draft-release job was skipped because this was a push to `main`.
 
 Checks completed in that run:
 
-- `cargo metadata --locked` passed, and the shared npm/Cargo lockfiles plus all 2.0.1 version metadata were validated.
-- The shared React/Vite frontend build passed.
-- Windows produced `JVC_2.0.1_x64-setup.exe` (2,048,365 bytes) and `JVC_2.0.1_x64_en-US.msi` (3,059,712 bytes); CI checked that both installer types existed.
-- macOS produced `JVC_2.0.1_universal.dmg` (5.65 MiB). CI confirmed the app executable contains both `x86_64` and `arm64`, and verified that the generated `Info.plist` contains both camera and microphone usage descriptions.
-- Android produced version `2.0.1`, versionCode `20001`. CI verified the debug APK signature and confirmed the manifest contains CAMERA, RECORD_AUDIO and MODIFY_AUDIO_SETTINGS. The APK uses the Android Debug certificate, not a private production upload key. The unsigned release AAB was also built and passed ZIP archive integrity validation.
+- `cargo metadata --locked` and the app-version alignment checks passed.
+- The shared React/TypeScript/Vite production build passed on all platform jobs.
+- Windows produced `JVC_2.0.1_x64-setup.exe` (2,046,345 bytes) and `JVC_2.0.1_x64_en-US.msi` (3,059,712 bytes); CI verified both installer types exist.
+- macOS produced `JVC_2.0.1_universal.dmg` (5.65 MiB) and a 20.08 MiB app bundle. CI confirmed the executable contains both `x86_64` and `arm64` slices and checked that camera and microphone usage descriptions survived bundling.
+- Android produced package `au.jigar.jvc`, versionName `2.0.1`, versionCode `20001`. CI verified the debug APK signature and manifest permissions for CAMERA, RECORD_AUDIO and MODIFY_AUDIO_SETTINGS. The APK uses Android's debug certificate. The unsigned release AAB was also built and passed ZIP archive integrity validation.
 
-GitHub Actions artifacts (temporary, retained for 14 days):
+GitHub Actions artifacts from that run (temporary; 14-day retention, expiring 1 December 2026):
 
-- [Windows x64 installers](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14314221778) — artifact archive 4,877,394 bytes
-- [Universal macOS package](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14313532954) — artifact archive 11,973,570 bytes
-- [Android debug APK](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14314450508) — artifact archive 3,703,559 bytes
-- [Android unsigned release AAB](https://github.com/Jigar1234Nob/JVC/actions/runs/44051046087/artifacts/14313014247) — artifact archive 2,826,646 bytes
+- [Windows x64 installers](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14314651023) — archive 4,875,382 bytes; SHA-256 `4a23f3eef7aa4834af23692d5290375a093a760214891aa72818562a4b9f5684`
+- [Universal macOS package](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14315245024) — archive 11,985,154 bytes; SHA-256 `73acf7f355797b2d9211d72e3b2bde055cd47d8130b989e6c02475e390e6c8b0`
+- [Android debug APK](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14314840612) — archive 3,703,551 bytes; SHA-256 `71365a71e83a0845a465b658a93bb0a45aa6636025f39dbc838ca44b4aa85b8f`
+- [Android unsigned release AAB](https://github.com/Jigar1234Nob/JVC/actions/runs/44052296994/artifacts/14314651122) — archive 2,826,646 bytes; SHA-256 `6674d65b5439564495a9da0537fe27a8eeef3ba76332073fc6c890ccd7d690d5`
 
-These are CI compilation, packaging and static artifact checks, not interactive installation or runtime tests. No Windows VM, Intel Mac, Apple Silicon Mac or physical Android device was available. Camera/microphone permission flows, voice/video calls, notifications and clipboard UX still require real-device QA.
+These results prove CI compilation, packaging and the listed static checks. They do not prove interactive installation or runtime behavior. No Windows VM, Intel Mac, Apple Silicon Mac or physical Android device was available. Camera/microphone prompts, real calls, login, upload, notifications and clipboard UX still need device QA.
 
-The public [`v2.0.0` release](https://github.com/Jigar1234Nob/JVC/releases/tag/v2.0.0) predates this source and points to commit `b72c1de`. The 2.0.1 artifacts above are not attached to that release. No `v2.0.1` tag or public release has been created. Pushing a matching tag will create a draft release containing the unsigned QA packages; it must be signed, checked and manually published.
+The public [`v2.0.0` release](https://github.com/Jigar1234Nob/JVC/releases/tag/v2.0.0) predates the current 2.0.1 source and is not a 2.0.1 build. The 2.0.1 artifacts above are not attached to that release. No `v2.0.1` tag or public release has been created. The startup checker reads only the latest non-draft release, so the 2.0.0 release is not offered as an update to an installed 2.0.1 build. Pushing a matching `v2.0.1` tag will create a draft candidate; it must be signed, checked and manually published.
 ## Signing and packaging
 
 Never commit certificates, keystores, passwords, provisioning profiles or API keys.
