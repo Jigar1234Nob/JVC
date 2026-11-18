@@ -8,6 +8,10 @@ android/
 .env.*
 !.env.example
 # Signing certificates, private keys and provisioning profiles
+key.properties
+*.p8
+service-account*.json
+*-service-account*.json
 *.keystore
 *.jks
 *.p12
